@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maze Generator</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+  }
+  .maze {
+    display: flex;
+    flex-wrap: wrap;
+    width: 500px;
+    height: 500px;
+    border: 2px solid black;
+  }
+  .cell {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+  }
+  .start {
+    background-color: green;
+  }
+  .end {
+    background-color: red;
+  }
+  .wall {
+    background-color: black;
+  }
+  .path {
+    background-color: yellow;
+  }
+</style>
+</head>
+<body>
+<div id="mazeContainer"></div>
+<button onclick="generateMaze()">Generate Maze</button>
+<p id="timer"></p>
+<script>
+  // Maze size
+  const rows = 25;
+  const cols = 25;
+
+  // Function to generate a maze
+  function generateMaze() {
+    clearMaze(); // Clear previous maze
+    const mazeContainer = document.getElementById('mazeContainer');
+    const maze = []; // Initialize maze array
+    // Initialize maze with empty spaces
+    for (let i = 0; i < rows; i++) {
+      maze[i] = [];
+      for (let j = 0; j < cols; j++) {
+        maze[i][j] = ' ';
+      }
+    }
+    // Randomly set start and end points
+    const startRow = Math.floor(Math.random() * rows);
+    const startCol = Math.floor(Math.random() * cols);
+    const endRow = Math.floor(Math.random() * rows);
+    const endCol = Math.floor(Math.random() * cols);
+    maze[startRow][startCol] = 'S'; // 'S' represents start
+    maze[endRow][endCol] = 'E'; // 'E' represents end
+    const mazeDiv = document.createElement('div'); // Create maze container
+    mazeDiv.classList.add('maze'); // Add maze class to container
+    // Create cells for the maze
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const cellDiv = document.createElement('div'); // Create cell element
+        cellDiv.classList.add('cell'); // Add cell class
+        // Set class based on cell content
+        if (i === startRow && j === startCol) {
+          cellDiv.classList.add('start'); // Add start class
+        } else if (i === endRow && j === endCol) {
+          cellDiv.classList.add('end'); // Add end class
+        } else if (maze[i][j] === '#') {
+          cellDiv.classList.add('wall'); // Add wall class
+        }
+        mazeDiv.appendChild(cellDiv); // Append cell to maze container
+      }
+    }
+    mazeContainer.appendChild(mazeDiv); // Append maze to maze container
+    startTimer(); // Start timer
+  }
+
+  // Timer
+  let secondsLeft = 90;
+  let timerInterval;
+  function startTimer() {
+    clearInterval(timerInterval); // Clear previous timer
+    secondsLeft = 90; // Reset timer to 90 seconds
+    updateTimer(); // Update timer display
+    timerInterval = setInterval(() => {
+      secondsLeft--; // Decrement timer
+      updateTimer(); // Update timer display
+      if (secondsLeft === 0) {
+        clearInterval(timerInterval); // Clear timer when it reaches 0
+        showResult(); // Show result when time is up
+      }
+    }, 1000); // Update timer every second
+  }
+  function updateTimer() {
+    const timerElement = document.getElementById('timer');
+    timerElement.textContent = `Time Left: ${secondsLeft} seconds`; // Update timer display
+  }
+
+  // Function to display result
+  function showResult() {
+    const mazeCells = document.querySelectorAll('.cell'); // Get all maze cells
+    mazeCells.forEach(cell => {
+      if (!cell.classList.contains('start') && !cell.classList.contains('end')) {
+        cell.classList.remove('wall'); // Remove wall class
+        cell.classList.remove('path'); // Remove path class
+        if (cell.classList.contains('open')) {
+          cell.classList.remove('open'); // Remove open class
+        }
+      }
+    });
+    // Get start and end cells
+    const startCell = document.querySelector('.start');
+    const endCell = document.querySelector('.end');
+    const startRow = parseInt(startCell.style.top) / 20;
+    const startCol = parseInt(startCell.style.left) / 20;
+    const endRow = parseInt(endCell.style.top) / 20;
+    const endCol = parseInt(endCell.style.left) / 20;
+    const path = aStarSearch(startRow, startCol, endRow, endCol); // Find shortest path
+    if (path.length > 0) {
+      path.forEach(([row, col]) => {
+        const cellIndex = row * cols + col;
+        mazeCells[cellIndex].classList.add('path'); // Add path class to cells in shortest path
+      });
+    } else {
+      alert('No path found!'); // Alert if no path found
+    }
+  }
+
+  // A* Search Algorithm
+  function aStarSearch(startRow, startCol, endRow, endCol) {
+    // A* search algorithm implementation
+    // This function should return an array of coordinates representing the shortest path from start to end
+    // If no path is found, return an empty array []
+    // You can implement this function using any A* search algorithm implementation
+    // For simplicity, a basic implementation is provided here
+    const frontier = [{ row: startRow, col: startCol, cost: 0 }];
+    const cameFrom = {};
+    const costSoFar = {};
+    cameFrom[`${startRow},${startCol}`] = null;
+    costSoFar[`${startRow},${startCol}`] = 0;
+    while (frontier.length > 0) {
+      frontier.sort((a, b) => a.cost - b.cost);
+      const current = frontier.shift();
+      if (current.row === endRow && current.col === endCol) {
+        const path = [];
+        let node = current;
+        while (node) {
+          path.push([node.row, node.col]);
+          node = cameFrom[`${node.row},${node.col}`];
+        }
+        return path.reverse(); // Return shortest path
+      }
+      const neighbors = getNeighbors(current.row, current.col); // Get neighboring cells
+      neighbors.forEach(neighbor => {
+        const newCost = costSoFar[`${current.row},${current.col}`] + 1;
+        if (!(neighbor.row in costSoFar) || newCost < costSoFar[`${neighbor.row},${neighbor.col}`]) {
+          costSoFar[`${neighbor.row},${neighbor.col}`] = newCost;
+          const priority = newCost + heuristic(neighbor.row, neighbor.col, endRow, endCol);
+          frontier.push({ row: neighbor.row, col: neighbor.col, cost: priority });
+          cameFrom[`${neighbor.row},${neighbor.col}`] = { row: current.row, col: current.col };
+        }
+      });
+    }
+    return []; // Return empty array if no path found
+  }
+
+  // Function to get neighboring cells
+  function getNeighbors(row, col) {
+    const neighbors = [];
+    if (row > 0) neighbors.push({ row: row - 1, col });
+    if (col > 0) neighbors.push({ row, col: col - 1 });
+    if (row < rows - 1) neighbors.push({ row: row + 1, col });
+    if (col < cols - 1) neighbors.push({ row, col: col + 1 });
+    return neighbors;
+  }
+
+  // Heuristic function for A* search
+  function heuristic(row1, col1, row2, col2) {
+    return Math.abs(row1 - row2) + Math.abs(col1 - col2);
+  }
+
+  // Function to clear maze
+  function clearMaze() {
+    const mazeContainer = document.getElementById('mazeContainer');
+    mazeContainer.innerHTML = '';
+  }
+</script>
+</body>
+</html>
